@@ -13,8 +13,8 @@ dependencies = [
     "pydantic>=2.11.7",
 ]
 
-[project.scripts]
-dearpygui-forms = "dearpygui_forms:main"
+[project.urls]
+homepage = "https://github.com/vlewicki/dearpygui-forms"
 
 
 [build-system]

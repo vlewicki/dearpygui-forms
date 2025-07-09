@@ -194,8 +194,10 @@ def generate_widget(json_schema: dict[str, Any],  defs: dict[str, Any], generate
             if generate_object:
                 return ObjectWidget(schema, defs, **kwargs)
             else:
+                raise NotImplementedError("ExternalWidget is not implemented yet")
                 return ExternalWidget(schema, defs, **kwargs)
         case PropertySchema(type='array'):
+            raise NotImplementedError("ArrayWidget is not implemented yet")
             return ArrayWidget(schema, defs, **kwargs)
         case PropertySchema(type='string'):
             return StringWidget(schema, defs, **kwargs)
@@ -208,6 +210,7 @@ def generate_widget(json_schema: dict[str, Any],  defs: dict[str, Any], generate
         case PropertySchema(type='null'):
             return NoneWidget(schema, defs, **kwargs)
         case PropertySchema(anyOf=types) if len(types) > 0:
-            return MultiTypeWidget(schema, defs, **kwargs)
+            raise NotImplementedError("MultiTypeWidget is not implemented yet")
+            # return MultiTypeWidget(schema, defs, **kwargs)
         case _:
             raise ValueError(f"Unsupported schema: {schema}")

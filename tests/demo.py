@@ -1,8 +1,10 @@
 import datetime
 import decimal
+from pprint import pprint
 import dearpygui.dearpygui as dpg
 
 import dearpygui.dearpygui as dpg
+from loguru import logger
 from pydantic import BaseModel, Field
 
 from dearpygui import demo
@@ -24,8 +26,9 @@ class User(BaseModel):
     weight: float = 60.0
     pi: decimal.Decimal = decimal.Decimal('3.1415')
     male: bool = True
-    tool: Tool
-    best_friend: 'User'
+    tool: Tool | int
+    best_friend: 'User' = Field(title='Best friend')
+    zero: None
     # friends: list['User']
 
 
@@ -60,8 +63,11 @@ def main():
             dpg.add_menu_item(label='About', callback=dpg.show_about)
 
     with dpg.window(label="Template", width=641, height=480):
-        UserForm(lambda x: print("UserForm submitted")).add()
-
+        UserForm(lambda x: logger.success(x)).add()
+        tf = ToolForm(lambda x: logger.success(x))
+        tf.add()
+        t = Tool(name='Tool', price=100.55, quantity=22)
+        tf.fill_form(t)
 
 
 
