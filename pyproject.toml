@@ -1,6 +1,6 @@
 [project]
 name = "dearpygui-forms"
-version = "0.1.3"
+version = "0.2.0"
 description = "Dearpygui extention for autogeneration forms powered by pydantic."
 readme = "README.md"
 authors = [
