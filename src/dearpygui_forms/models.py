@@ -2,7 +2,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 
-class Property:
+class PropertySchema:
     def __init__(self, schema: dict[str, Any]) -> None:
         self.title: str = schema.get("title", "Noname")
         self.type = schema.get("type", None)

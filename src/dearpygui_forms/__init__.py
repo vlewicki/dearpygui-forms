@@ -11,7 +11,7 @@ from loguru import logger
 import pydantic
 
 
-from .dpg_form import DPGForm
+from .dpg_form import DPGForm, Property
 
 def parse_property_type(property_schema: dict[str, Any]) -> str:
     property_type = property_schema.get("type", None)
