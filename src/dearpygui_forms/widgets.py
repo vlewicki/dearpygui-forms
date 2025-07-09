@@ -6,6 +6,7 @@ from loguru import logger
 
 
 from .models import PropertySchema
+from .exceptions import DearpyguiFormsError
 
 
 @logger.catch
@@ -26,7 +27,8 @@ class Widget:
         self._defs = defs
         self._kwargs = kwargs
         with dpg.stage() as self._staging_container_id:
-            self._ui()
+            with dpg.group() as self._root_item:
+                self._ui()
 
         if schema.default:
             self.set_value(schema.default)
@@ -34,8 +36,26 @@ class Widget:
     def _ui(self):
         dpg.add_text(f"Property {self.schema.title}, type: {self.schema.type}")
 
-    def add(self):
-        dpg.unstage(self._staging_container_id)
+    def add(self, parent=None, hidden=False):
+        """
+        Add widget as dpg ui item.
+        """
+        if parent is not None:
+            dpg.push_container_stack(parent)
+            dpg.unstage(self._staging_container_id)
+            dpg.pop_container_stack()
+        else:
+            dpg.unstage(self._staging_container_id)
+
+        if hidden:
+            self.hide()
+
+
+    def hide(self):
+        dpg.hide_item(self._root_item)
+
+    def show(self):
+        dpg.show_item(self._root_item)
 
     def set_value(self, value: Any):
         pass
@@ -73,29 +93,37 @@ class MultiTypeWidget(Widget):
     def __init__(self, schema, defs, **kwargs):
         self._type_switcher_id = dpg.generate_uuid()
         self._widget: Widget | None = None
-        self._widgets = [generate_widget(type_schema, defs) for type_schema in schema.anyOf]
+        self._widgets: dict[str, Widget] = {}
+        for type_schema in schema.anyOf:
+            widget = generate_widget(type_schema, defs)
+            self._widgets[widget.schema.type] = widget
+
         super().__init__(schema, defs, **kwargs)
-        logger.debug(defs)
 
 
     def _ui(self):
         dpg.add_text(self.schema.title)
-        with dpg.group(indent=10):
-            dpg.add_combo(label="Type", tag=self._type_switcher_id, items=tuple(x.schema.title or x.schema.type for x in self._widgets), callback=self.switch_value_type)
+        with dpg.group(indent=10) as self._form:
+            dpg.add_combo(label="Type", tag=self._type_switcher_id, items=list(self._widgets.keys()), callback=self.switch_value_type)
+            for widget in self._widgets.values():
+                widget.add(hidden=True)
 
-
-    def switch_value_type(self, new_type):
-        logger.debug(f"Switching to type {dpg.get_value(self._type_switcher_id)}")
-
+    def switch_value_type(self):
+        new_type = dpg.get_value(self._type_switcher_id)
+        if self._widget is not None:
+            self._widget.hide()
+        self._widget = self._widgets[new_type]
+        self._widget.show()
 
     def get_value(self):
         if self._widget:
             return self._widget.get_value()
         else:
-            return None
+            raise DearpyguiFormsError(f"{self.schema.title}: choose value type")
 
     def set_value(self, value):
-        dpg.set_value(self._type_switcher_id, value)
+        pass
+        # dpg.set_value(self._type_switcher_id, value)
 
 
 class StringWidget(Widget):
@@ -210,7 +238,6 @@ def generate_widget(json_schema: dict[str, Any],  defs: dict[str, Any], generate
         case PropertySchema(type='null'):
             return NoneWidget(schema, defs, **kwargs)
         case PropertySchema(anyOf=types) if len(types) > 0:
-            raise NotImplementedError("MultiTypeWidget is not implemented yet")
-            # return MultiTypeWidget(schema, defs, **kwargs)
+            return MultiTypeWidget(schema, defs, **kwargs)
         case _:
             raise ValueError(f"Unsupported schema: {schema}")

@@ -1,0 +1,2 @@
+class DearpyguiFormsError(Exception):
+    pass
