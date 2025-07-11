@@ -1,6 +1,6 @@
 import datetime
 import decimal
-from pprint import pprint
+from pprint import pformat, pprint
 import dearpygui.dearpygui as dpg
 
 import dearpygui.dearpygui as dpg
@@ -25,10 +25,11 @@ class User(BaseModel):
     fingers_on_the_hand: int = 5
     weight: float = 60.0
     pi: decimal.Decimal = decimal.Decimal('3.1415')
-    male: bool = True
-    tool: Tool | int
-    best_friend: 'User' = Field(title='Best friend')
+    male: bool|None|int = True
+    tool: Tool = Field(title="Gun", default=Tool(name="Gun00", price=100.0, quantity=1))
+    best_friend: 'User | None' = Field(title='Best friend')
     zero: None
+    tools: list[int | Tool | None]
     # friends: list['User']
 
 
@@ -63,11 +64,8 @@ def main():
             dpg.add_menu_item(label='About', callback=dpg.show_about)
 
     with dpg.window(label="Template", width=641, height=480):
+        logger.debug(f"{pformat(User.model_json_schema())}")
         UserForm(lambda x: logger.success(x)).add()
-        tf = ToolForm(lambda x: logger.success(x))
-        tf.add()
-        t = Tool(name='Tool', price=100.55, quantity=22)
-        tf.fill_form(t)
 
 
 

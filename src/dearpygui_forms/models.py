@@ -9,6 +9,7 @@ class PropertySchema:
         self.anyOf: list[dict[str, Any]] = schema.get("anyOf", [])
         self.properties: dict[str, dict[str, Any]] = schema.get("properties", {})
         self.default = schema.get("default", None)
+        self.items = schema.get("items", None)
 
     def __repr__(self) -> str:
         return f"PropertySchema(title={self.title}, type={self.type}, anyOf={self.anyOf}, properties={self.properties}, default={self.default})"

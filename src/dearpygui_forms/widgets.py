@@ -72,6 +72,7 @@ class ObjectWidget(Widget):
         for property_name, property in self.schema.properties.items():
             property_widget = generate_widget(property, self._defs, generate_object=False)
             property_widget.add()
+            dpg.add_spacer(height=10)
             self._properties[property_name] = property_widget
 
     def get_value(self) -> dict[str, Any]:
@@ -82,9 +83,69 @@ class ObjectWidget(Widget):
             property_widget.set_value(value.get(property_name))
 
 
+class ExternalWidget(Widget):
+    def __init__(self, schema, defs, **kwargs):
+        self._external_id = dpg.generate_uuid()
+        self._widget: Widget | None = None
+        super().__init__(schema, defs, **kwargs)
+
+    def _ui(self):
+        if self.schema.title:
+            dpg.add_text(self.schema.title)
+        with dpg.group(indent=25) as self._form:
+            self._edit_button = dpg.add_button(label=f"Edit", callback=self.show_object_form)
+
+    def show_object_form(self):
+        if self._widget is None:
+            dpg.delete_item(self._edit_button)
+            self._widget = ObjectWidget(self.schema, self._defs)
+            self._widget.add(parent=self._form)
+
+    def get_value(self):
+        if self._widget is None:
+            raise DearpyguiFormsError(f"{self.schema.title}: set up object.")
+        return self._widget.get_value()
+
+    def set_value(self, value):
+        self.show_object_form()
+        self._widget.set_value(value)
+
+
+
 class ArrayWidget(Widget):
     def __init__(self, schema, defs, **kwargs):
         super().__init__(schema, defs, **kwargs)
+        self.widgets: list[Widget] = []
+
+    def _ui(self):
+        with dpg.group(horizontal=True):
+            dpg.add_text(f"{self.schema.title}")
+            dpg.add_button(label="Add", callback=self.add_item)
+            dpg.add_button(label="Remove", callback=self.remove_item)
+        with dpg.group(indent=25) as self._form:
+            pass
+
+    def add_item(self):
+        widget = generate_widget(self.schema.items, self._defs)
+        self.widgets.append(widget)
+        widget.add(parent=self._form)
+
+    def remove_item(self):
+        if self.widgets:
+            widget = self.widgets.pop()
+            dpg.delete_item(widget._root_item)
+
+    def get_value(self):
+        return [widget.get_value() for widget in self.widgets]
+
+    def set_value(self, value):
+        self.widgets = []
+        for item in value:
+            widget = generate_widget(self.schema.items, self._defs)
+            self.widgets.append(widget)
+            widget.set_value(item)
+            widget.add(parent=self._form)
+
 
 
 class MultiTypeWidget(Widget):
@@ -94,25 +155,26 @@ class MultiTypeWidget(Widget):
         self._widgets: dict[str, Widget] = {}
         for type_schema in schema.anyOf:
             widget = generate_widget(type_schema, defs, generate_object=False)
-            self._widgets[widget.schema.type] = widget
+            self._widgets[widget.schema.title or widget.schema.type] = widget
 
         super().__init__(schema, defs, **kwargs)
 
     def _ui(self):
         with dpg.group(horizontal=True):
-            dpg.add_text(self.schema.title)
-            dpg.add_combo(label="Type",
-                tag=self._type_switcher_id,
-                items=list(self._widgets.keys()),
-                callback=self.switch_value_type,
-                no_preview=True
-            )
+            if self.schema.title:
+                dpg.add_text(self.schema.title)
+            items = list(self._widgets.keys())
+            for i in items:
+                dpg.add_button(label=i,
+                    user_data=i,
+                    callback=lambda sender, app_data, user_data: self.switch_value_type(user_data),
+                    small=True
+                )
         with dpg.group(indent=25) as self._form:
             for widget in self._widgets.values():
                 widget.add(hidden=True)
 
-    def switch_value_type(self):
-        new_type = dpg.get_value(self._type_switcher_id)
+    def switch_value_type(self, new_type):
         if self._widget is not None:
             self._widget.hide()
         self._widget = self._widgets[new_type]
@@ -135,7 +197,9 @@ class StringWidget(Widget):
         super().__init__(schema, defs, **kwargs)
 
     def _ui(self):
-        dpg.add_input_text(label=self.schema.title, tag=self._input_id)
+        if self.schema.title:
+            dpg.add_text(self.schema.title)
+        dpg.add_input_text(tag=self._input_id)
 
     def get_value(self):
         return dpg.get_value(self._input_id)
@@ -150,7 +214,9 @@ class IntegerWidget(Widget):
         super().__init__(schema, defs, **kwargs)
 
     def _ui(self):
-        dpg.add_input_int(label=self.schema.title, tag=self._input_id)
+        if self.schema.title:
+            dpg.add_text(self.schema.title)
+        dpg.add_input_int(tag=self._input_id)
 
     def get_value(self):
         return dpg.get_value(self._input_id)
@@ -165,7 +231,9 @@ class NumberWidget(Widget):
         super().__init__(schema, defs, **kwargs)
 
     def _ui(self):
-        dpg.add_input_float(label=self.schema.title, tag=self._input_id)
+        if self.schema.title:
+            dpg.add_text(self.schema.title)
+        dpg.add_input_float(tag=self._input_id)
 
     def get_value(self):
         return dpg.get_value(self._input_id)
@@ -180,7 +248,9 @@ class BooleanWidget(Widget):
         super().__init__(schema, defs, **kwargs)
 
     def _ui(self):
-       dpg.add_checkbox(label=self.schema.title, tag=self._checkbox_id)
+        if self.schema.title:
+            dpg.add_text(self.schema.title)
+        dpg.add_checkbox(tag=self._checkbox_id)
 
     def get_value(self):
         return dpg.get_value(self._checkbox_id)
@@ -194,39 +264,15 @@ class NoneWidget(Widget):
         super().__init__(schema, defs, **kwargs)
 
     def _ui(self):
-        dpg.add_input_text(default_value='<None>', label=self.schema.title, tag=self._none_id, enabled=False)
+        if self.schema.title:
+            dpg.add_text(self.schema.title)
+        dpg.add_text("<None>", color=(128, 128, 128))
 
     def get_value(self):
         return None
 
     def set_value(self, value):
         pass
-
-
-class ExternalWidget(Widget):
-    def __init__(self, schema, defs, **kwargs):
-        self._external_id = dpg.generate_uuid()
-        self._widget: Widget | None = None
-        super().__init__(schema, defs, **kwargs)
-
-    def _ui(self):
-        with dpg.tree_node(label=self.schema.title) as self._form:
-            self._edit_button = dpg.add_button(label=f"Edit", callback=self.show_object_form)
-
-    def show_object_form(self):
-        if self._widget is None:
-            dpg.delete_item(self._edit_button)
-            self._widget = ObjectWidget(self.schema, self._defs)
-            self._widget.add(parent=self._form)
-
-    def get_value(self):
-        if self._widget is None:
-            raise DearpyguiFormsError(f"{self.schema.title}: set up object.")
-        return self._widget.get_value()
-
-    def set_value(self, value):
-        self.show_object_form()
-        self._widget.set_value(value)
 
 
 def generate_widget(json_schema: dict[str, Any],  defs: dict[str, Any], generate_object: bool = True, **kwargs) -> Widget:
@@ -238,7 +284,6 @@ def generate_widget(json_schema: dict[str, Any],  defs: dict[str, Any], generate
             else:
                 return ExternalWidget(schema, defs, **kwargs)
         case PropertySchema(type='array'):
-            raise NotImplementedError("ArrayWidget is not implemented yet")
             return ArrayWidget(schema, defs, **kwargs)
         case PropertySchema(type='string'):
             return StringWidget(schema, defs, **kwargs)
