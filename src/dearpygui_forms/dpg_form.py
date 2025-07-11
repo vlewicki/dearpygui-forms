@@ -9,6 +9,7 @@ from loguru import logger
 
 from .models import PropertySchema
 from .widgets import *
+from . import exceptions
 
 
 def extract_defs(schema: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -46,6 +47,9 @@ class DPGForm:
         except pydantic.ValidationError as e:
             with dpg.window(modal=True, label="Validation Error"):
                 dpg.add_text(f"Validation error: {e}")
+        except exceptions.DearpyguiFormsError as e:
+            with dpg.window(modal=True, label="Form Error"):
+                dpg.add_text(f"Form error: {e}")
         else:
             self._callback(data)
 
